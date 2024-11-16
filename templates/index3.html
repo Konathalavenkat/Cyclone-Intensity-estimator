@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Cyclone Detection and Intensity Estimation</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #343a40;
+            margin-bottom: 30px;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            font-size: 18px;
+            color: #28a745;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        #classification, #result {
+            margin-top: 15px;
+            font-size: 18px;
+            color: #555;
+        }
+        #imageDisplay {
+            margin-top: 20px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        }
+        .image-container {
+            position: relative;
+            text-align: center;
+        }
+        .bounding-box {
+            position: absolute;
+            border: 3px solid red;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 class="text-center">Automated Cyclone Detection and Intensity Estimation</h1>
+        <p class="text-center text-muted">Wait for the next fetch or click below to fetch an image and predict the cyclone classification and intensity.</p>
+
+        <!-- Prediction Result and Timer -->
+        <div id="timer" class="text-center mb-3" style="font-size: 20px; font-weight: bold;">Next Fetch In: 5:00</div>
+        <div id="result" class="text-center"></div>
+        
+        <!-- Image Fetching -->
+        <div id="classification" class="status text-center"></div>
+        <button id="refetchButton" class="btn btn-primary">Refetch Now</button>
+
+        <!-- Image display section -->
+        <div class="image-container">
+            <img id="imageDisplay" src="https://mausam.imd.gov.in/Satellite/3Dasiasec_ir1.jpg" alt="Cyclone Image" />
+            <!-- Bounding Box will be added dynamically here -->
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and Popper.js -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        const FETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+        let countdown = 5 * 60; // 5 minutes in seconds
+    
+        const resultDiv = document.getElementById('result');
+        const timerDiv = document.getElementById('timer');
+        const imageElement = document.getElementById('imageDisplay');
+        const refetchButton = document.getElementById('refetchButton');
+
+        // Countdown Timer
+        function startCountdown() {
+            const interval = setInterval(() => {
+                const minutes = Math.floor(countdown / 60);
+                const seconds = countdown % 60;
+                timerDiv.textContent = `Next Fetch In: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                countdown--;
+    
+                if (countdown < 0) {
+                    clearInterval(interval);
+                    countdown = 5 * 60; // reset countdown
+                    fetchAndPredict();
+                    startCountdown(); // restart countdown
+                }
+            }, 1000);
+        }
+
+        // Fetch and Predict Cyclone Data
+        async function fetchAndPredict() {
+            resultDiv.textContent = `Fetching image from server at ${new Date().toLocaleTimeString()}...`;
+            imageElement.style.display = 'none';  // Hide the image until we have it
+
+            try {
+                const response = await fetch('/fetchAndPredict');
+                const data = await response.json();
+
+                if (data.error) {
+                    resultDiv.textContent = `Error: ${data.error}`;
+                } else {
+                    // Display intensity and classification
+                    if (data.intensity && !isNaN(data.intensity)) {
+                        resultDiv.textContent = `Predicted Cyclone Intensity: ${(data.intensity / 2.5).toFixed(2)} | Time: ${data.timestamp}`;
+                    } else {
+                        resultDiv.textContent = "No cyclone detected in the image.";  // If intensity is not valid
+                    }
+                
+                    const timestamp = new Date().getTime(); 
+                    imageElement.src = `/static/cyclone.jpg?t=${timestamp}`;
+                    imageElement.style.display = 'block';  
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error fetching or processing image: ${error.message}`;
+                imageElement.style.display = 'none';  // Hide the image on error
+            }
+        }
+
+        // Manual Refetch Button
+        refetchButton.addEventListener('click', () => {
+            countdown = 5 * 60; // reset countdown
+            fetchAndPredict();
+        });
+
+        // Start the initial fetch and countdown
+        fetchAndPredict();
+        startCountdown();
+    </script>
+</body>
+</html>
